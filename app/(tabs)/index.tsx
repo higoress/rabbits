@@ -1,9 +1,15 @@
-import { database, DATABASE_ID, HABITS_COLLECTION_ID } from "@/lib/appwrite";
+import {
+  client,
+  database,
+  DATABASE_ID,
+  HABITS_COLLECTION_ID,
+  RealtimeResponse,
+} from "@/lib/appwrite";
 import { useAuth } from "@/lib/auth-context";
 import { Habit } from "@/types/database.types";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 import { Query } from "react-native-appwrite";
 import { IconButton, Text } from "react-native-paper";
 
@@ -13,7 +19,39 @@ export default function Index() {
   const { user, signOut } = useAuth();
 
   useEffect(() => {
-    fetchHabits();
+    if (user) {
+      const habitsChannel = `databases.${DATABASE_ID}.collections.${HABITS_COLLECTION_ID}.documents`;
+      const habitsSubscription = client.subscribe(
+        habitsChannel,
+        (response: RealtimeResponse) => {
+          if (
+            response.events.includes(
+              "databases.*.collections.*.documents.*.create"
+            )
+          ) {
+            fetchHabits();
+          } else if (
+            response.events.includes(
+              "databases.*.collections.*.documents.*.update"
+            )
+          ) {
+            fetchHabits();
+          } else if (
+            response.events.includes(
+              "databases.*.collections.*.documents.*.delete"
+            )
+          ) {
+            fetchHabits();
+          }
+        }
+      );
+
+      fetchHabits();
+
+      return () => {
+        habitsSubscription();
+      };
+    }
   }, [user]);
 
   const fetchHabits = async () => {
@@ -31,49 +69,53 @@ export default function Index() {
   };
 
   return (
-    <View>
+    <View style={styles.pageContainer}>
       <View style={styles.header}>
         <Text variant="headlineSmall" style={styles.headerTitle}>
           Today's Rabbits
         </Text>
         <IconButton onPress={signOut} icon={"logout"} iconColor="#6200ee" />
       </View>
-      {habits?.length === 0 ? (
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyStateText}>
-            No habits yet. Add your first habit.
-          </Text>
-        </View>
-      ) : (
-        habits?.map((habit, key) => {
-          return (
-            <View key={key} style={styles.cardContainer}>
-              <View style={styles.cardHeader}>
-                <Text style={styles.cardTitle}>{habit.title}</Text>
-                <Text style={styles.cardDescription}>{habit.description}</Text>
-              </View>
-              <View style={styles.cardFooter}>
-                <View style={styles.streakBadge}>
-                  <MaterialCommunityIcons
-                    name="fire"
-                    size={18}
-                    color={"#ff9800"}
-                  />
-                  <Text style={styles.streakText}>
-                    {habit.streak_count} day streak
+      <ScrollView showsHorizontalScrollIndicator={false}>
+        {habits?.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyStateText}>
+              No habits yet. Add your first habit.
+            </Text>
+          </View>
+        ) : (
+          habits?.map((habit, key) => {
+            return (
+              <View key={key} style={styles.cardContainer}>
+                <View style={styles.cardHeader}>
+                  <Text style={styles.cardTitle}>{habit.title}</Text>
+                  <Text style={styles.cardDescription}>
+                    {habit.description}
                   </Text>
                 </View>
-                <View style={styles.frequencyBadge}>
-                  <Text style={styles.frequencyText}>
-                    {habit.frequency.charAt(0).toUpperCase() +
-                      habit.frequency.slice(1)}
-                  </Text>
+                <View style={styles.cardFooter}>
+                  <View style={styles.streakBadge}>
+                    <MaterialCommunityIcons
+                      name="fire"
+                      size={18}
+                      color={"#ff9800"}
+                    />
+                    <Text style={styles.streakText}>
+                      {habit.streak_count} day streak
+                    </Text>
+                  </View>
+                  <View style={styles.frequencyBadge}>
+                    <Text style={styles.frequencyText}>
+                      {habit.frequency.charAt(0).toUpperCase() +
+                        habit.frequency.slice(1)}
+                    </Text>
+                  </View>
                 </View>
               </View>
-            </View>
-          );
-        })
-      )}
+            );
+          })
+        )}
+      </ScrollView>
     </View>
   );
 }
@@ -157,5 +199,8 @@ const styles = StyleSheet.create({
   },
   emptyStateText: {
     color: "#666666",
+  },
+  pageContainer: {
+    flex: 1,
   },
 });
