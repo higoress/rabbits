@@ -39,31 +39,35 @@ export default function Index() {
         <IconButton onPress={signOut} icon={"logout"} iconColor="#6200ee" />
       </View>
       {habits?.length === 0 ? (
-        <View>
-          <Text>No habits yet. Add your first habit.</Text>
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyStateText}>
+            No habits yet. Add your first habit.
+          </Text>
         </View>
       ) : (
         habits?.map((habit, key) => {
           return (
-            <View key={key}>
-              <View style={styles.cardContainer}>
-                <Text>{habit.title}</Text>
-                <Text>{habit.description}</Text>
-                <View>
-                  <View>
-                    <MaterialCommunityIcons
-                      name="fire"
-                      size={24}
-                      color={"#ff9800"}
-                    />
-                    <Text>{habit.streak_count} day streak</Text>
-                  </View>
-                  <View>
-                    <Text>
-                      {habit.frequency.charAt(0).toUpperCase() +
-                        habit.frequency.slice(1)}
-                    </Text>
-                  </View>
+            <View key={key} style={styles.cardContainer}>
+              <View style={styles.cardHeader}>
+                <Text style={styles.cardTitle}>{habit.title}</Text>
+                <Text style={styles.cardDescription}>{habit.description}</Text>
+              </View>
+              <View style={styles.cardFooter}>
+                <View style={styles.streakBadge}>
+                  <MaterialCommunityIcons
+                    name="fire"
+                    size={18}
+                    color={"#ff9800"}
+                  />
+                  <Text style={styles.streakText}>
+                    {habit.streak_count} day streak
+                  </Text>
+                </View>
+                <View style={styles.frequencyBadge}>
+                  <Text style={styles.frequencyText}>
+                    {habit.frequency.charAt(0).toUpperCase() +
+                      habit.frequency.slice(1)}
+                  </Text>
                 </View>
               </View>
             </View>
@@ -80,15 +84,16 @@ const styles = StyleSheet.create({
     marginTop: 4,
     paddingHorizontal: 8,
     marginBottom: 16,
+    marginLeft: 8,
     justifyContent: "space-between",
     alignItems: "center",
   },
   headerTitle: {
     fontWeight: "bold",
-    fontSize: 28,
+    fontSize: 26,
   },
   cardContainer: {
-    flexDirection: "row",
+    justifyContent: "space-between",
     padding: 16,
     backgroundColor: "white",
     margin: 8,
@@ -98,5 +103,59 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 4,
+  },
+  cardHeader: {
+    flex: 1,
+    marginBottom: 10,
+  },
+  cardTitle: {
+    fontWeight: "bold",
+    fontSize: 20,
+    color: "#22223b",
+    marginBottom: 4,
+  },
+  cardDescription: {
+    fontSize: 14,
+    color: "gray",
+  },
+  cardFooter: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 8,
+  },
+  streakBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff3e0",
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+  },
+  streakText: {
+    color: "#ff9800",
+    marginLeft: 4,
+    fontWeight: "bold",
+    fontSize: 12,
+  },
+  frequencyBadge: {
+    marginRight: 8,
+    backgroundColor: "#ede7f6",
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+  },
+  frequencyText: {
+    color: "#7c4dff",
+    fontWeight: "bold",
+    fontSize: 12,
+  },
+  emptyState: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emptyStateText: {
+    color: "#666666",
   },
 });
