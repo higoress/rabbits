@@ -1,75 +1,102 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { database, DATABASE_ID, HABITS_COLLECTION_ID } from "@/lib/appwrite";
+import { useAuth } from "@/lib/auth-context";
+import { Habit } from "@/types/database.types";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useEffect, useState } from "react";
+import { StyleSheet, View } from "react-native";
+import { Query } from "react-native-appwrite";
+import { IconButton, Text } from "react-native-paper";
 
-import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
+export default function Index() {
+  const [habits, setHabits] = useState<Habit[]>();
 
-export default function HomeScreen() {
+  const { user, signOut } = useAuth();
+
+  useEffect(() => {
+    fetchHabits();
+  }, [user]);
+
+  const fetchHabits = async () => {
+    try {
+      const response = await database.listDocuments(
+        DATABASE_ID,
+        HABITS_COLLECTION_ID,
+        [Query.equal("user_id", user?.$id ?? "")]
+      );
+      console.log(response.documents);
+      setHabits(response.documents as unknown as Habit[]);
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+    <View>
+      <View style={styles.header}>
+        <Text variant="headlineSmall" style={styles.headerTitle}>
+          Today's Rabbits
+        </Text>
+        <IconButton onPress={signOut} icon={"logout"} iconColor="#6200ee" />
+      </View>
+      {habits?.length === 0 ? (
+        <View>
+          <Text>No habits yet. Add your first habit.</Text>
+        </View>
+      ) : (
+        habits?.map((habit, key) => {
+          return (
+            <View key={key}>
+              <View style={styles.cardContainer}>
+                <Text>{habit.title}</Text>
+                <Text>{habit.description}</Text>
+                <View>
+                  <View>
+                    <MaterialCommunityIcons
+                      name="fire"
+                      size={24}
+                      color={"#ff9800"}
+                    />
+                    <Text>{habit.streak_count} day streak</Text>
+                  </View>
+                  <View>
+                    <Text>
+                      {habit.frequency.charAt(0).toUpperCase() +
+                        habit.frequency.slice(1)}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            </View>
+          );
+        })
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  header: {
+    flexDirection: "row",
+    marginTop: 4,
+    paddingHorizontal: 8,
+    marginBottom: 16,
+    justifyContent: "space-between",
+    alignItems: "center",
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  headerTitle: {
+    fontWeight: "bold",
+    fontSize: 28,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  cardContainer: {
+    flexDirection: "row",
+    padding: 16,
+    backgroundColor: "white",
+    margin: 8,
+    borderRadius: 12,
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
   },
 });
