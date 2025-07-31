@@ -8,15 +8,17 @@ import {
 import { useAuth } from "@/lib/auth-context";
 import { Habit } from "@/types/database.types";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { Query } from "react-native-appwrite";
+import { Swipeable } from "react-native-gesture-handler";
 import { IconButton, Text } from "react-native-paper";
 
 export default function Index() {
   const [habits, setHabits] = useState<Habit[]>();
 
   const { user, signOut } = useAuth();
+  const swipableRefs = useRef<{ [key: string]: Swipeable | null }>({});
 
   useEffect(() => {
     if (user) {
@@ -52,7 +54,7 @@ export default function Index() {
         habitsSubscription();
       };
     }
-  }, [user]);
+  }, [user, habits]);
 
   const fetchHabits = async () => {
     try {
@@ -67,6 +69,34 @@ export default function Index() {
       console.log(error);
     }
   };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await database.deleteDocument(DATABASE_ID, HABITS_COLLECTION_ID, id);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const renderLeftActions = () => (
+    <View style={styles.renderActionLeft}>
+      <MaterialCommunityIcons
+        name="trash-can-outline"
+        size={32}
+        color={"#fff"}
+      />
+    </View>
+  );
+
+  const renderRightActions = () => (
+    <View style={styles.renderActionRight}>
+      <MaterialCommunityIcons
+        name="check-circle-outline"
+        size={32}
+        color={"#fff"}
+      />
+    </View>
+  );
 
   return (
     <View style={styles.pageContainer}>
@@ -86,32 +116,50 @@ export default function Index() {
         ) : (
           habits?.map((habit, key) => {
             return (
-              <View key={key} style={styles.cardContainer}>
-                <View style={styles.cardHeader}>
-                  <Text style={styles.cardTitle}>{habit.title}</Text>
-                  <Text style={styles.cardDescription}>
-                    {habit.description}
-                  </Text>
-                </View>
-                <View style={styles.cardFooter}>
-                  <View style={styles.streakBadge}>
-                    <MaterialCommunityIcons
-                      name="fire"
-                      size={18}
-                      color={"#ff9800"}
-                    />
-                    <Text style={styles.streakText}>
-                      {habit.streak_count} day streak
+              <Swipeable
+                ref={(ref) => {
+                  swipableRefs.current[habit.$id] = ref;
+                }}
+                key={key}
+                overshootLeft={false}
+                overshootRight={false}
+                renderLeftActions={renderLeftActions}
+                renderRightActions={renderRightActions}
+                onSwipeableOpen={(direction) => {
+                  if (direction == "left") {
+                    handleDelete(habit.$id);
+                  }
+
+                  swipableRefs.current[habit.$id]?.close();
+                }}
+              >
+                <View key={key} style={styles.cardContainer}>
+                  <View style={styles.cardHeader}>
+                    <Text style={styles.cardTitle}>{habit.title}</Text>
+                    <Text style={styles.cardDescription}>
+                      {habit.description}
                     </Text>
                   </View>
-                  <View style={styles.frequencyBadge}>
-                    <Text style={styles.frequencyText}>
-                      {habit.frequency.charAt(0).toUpperCase() +
-                        habit.frequency.slice(1)}
-                    </Text>
+                  <View style={styles.cardFooter}>
+                    <View style={styles.streakBadge}>
+                      <MaterialCommunityIcons
+                        name="fire"
+                        size={18}
+                        color={"#ff9800"}
+                      />
+                      <Text style={styles.streakText}>
+                        {habit.streak_count} day streak
+                      </Text>
+                    </View>
+                    <View style={styles.frequencyBadge}>
+                      <Text style={styles.frequencyText}>
+                        {habit.frequency.charAt(0).toUpperCase() +
+                          habit.frequency.slice(1)}
+                      </Text>
+                    </View>
                   </View>
                 </View>
-              </View>
+              </Swipeable>
             );
           })
         )}
@@ -202,5 +250,27 @@ const styles = StyleSheet.create({
   },
   pageContainer: {
     flex: 1,
+  },
+  renderActionLeft: {
+    flex: 1,
+    justifyContent: "center",
+    alignContent: "center",
+    alignItems: "flex-start",
+    backgroundColor: "#e53935",
+    borderRadius: 18,
+    marginBottom: 18,
+    marginTop: 2,
+    paddingLeft: 16,
+  },
+  renderActionRight: {
+    flex: 1,
+    justifyContent: "center",
+    alignContent: "center",
+    alignItems: "flex-end",
+    backgroundColor: "#4caf50",
+    borderRadius: 18,
+    marginBottom: 18,
+    marginTop: 2,
+    paddingRight: 16,
   },
 });
