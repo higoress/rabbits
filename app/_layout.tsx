@@ -2,7 +2,7 @@ import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { Stack, useRouter, useSegments } from "expo-router";
 import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { PaperProvider } from "react-native-paper";
+import { DefaultTheme, PaperProvider } from "react-native-paper";
 
 function RouteGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -23,10 +23,18 @@ function RouteGuard({ children }: { children: React.ReactNode }) {
 }
 
 export default function RootLayout() {
+  const theme = {
+    ...DefaultTheme,
+    colors: {
+      ...DefaultTheme.colors,
+      text: "black", // force black text
+    },
+  };
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <AuthProvider>
-        <PaperProvider>
+        <PaperProvider theme={theme}>
           <RouteGuard>
             <Stack>
               <Stack.Screen

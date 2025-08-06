@@ -7,7 +7,7 @@ import {
   RealtimeResponse,
 } from "@/lib/appwrite";
 import { useAuth } from "@/lib/auth-context";
-import { Habit } from "@/types/database.types";
+import { CompletedHabit, Habit } from "@/types/database.types";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useEffect, useRef, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
@@ -17,6 +17,7 @@ import { IconButton, Text } from "react-native-paper";
 
 export default function Index() {
   const [habits, setHabits] = useState<Habit[]>();
+  const [completedHabits, setCompletedHabits] = useState<string[]>();
 
   const { user, signOut } = useAuth();
   const swipableRefs = useRef<{ [key: string]: Swipeable | null }>({});
@@ -49,10 +50,26 @@ export default function Index() {
         }
       );
 
+      const completionsChannel = `databases.${DATABASE_ID}.collections.${HABITS_COMPLETION_COLLECTION_ID}.documents`;
+      const completionSubscription = client.subscribe(
+        completionsChannel,
+        (response: RealtimeResponse) => {
+          if (
+            response.events.includes(
+              "databases.*.collections.*.documents.*.create"
+            )
+          ) {
+            fetchTodayCompletions();
+          }
+        }
+      );
+
       fetchHabits();
+      fetchTodayCompletions();
 
       return () => {
         habitsSubscription();
+        completionSubscription();
       };
     }
   }, [user, habits]);
@@ -71,6 +88,26 @@ export default function Index() {
     }
   };
 
+  const fetchTodayCompletions = async () => {
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const response = await database.listDocuments(
+        DATABASE_ID,
+        HABITS_COMPLETION_COLLECTION_ID,
+        [
+          Query.equal("user_id", user?.$id ?? ""),
+          Query.greaterThanEqual("completed_at", today.toISOString()),
+        ]
+      );
+      const completions = response.documents as unknown as CompletedHabit[];
+      setCompletedHabits(completions.map((c) => c.habit_id));
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
   const handleDelete = async (id: string) => {
     try {
       await database.deleteDocument(DATABASE_ID, HABITS_COLLECTION_ID, id);
@@ -80,7 +117,7 @@ export default function Index() {
   };
 
   const handleCompleteHabit = async (habit_id: string) => {
-    if (!user) return;
+    if (!user || completedHabits?.includes(habit_id)) return;
 
     try {
       const currentDate = new Date().toISOString();
@@ -113,6 +150,9 @@ export default function Index() {
     }
   };
 
+  const isHabitCompleted = (habitId: string) =>
+    completedHabits?.includes(habitId);
+
   const renderLeftActions = () => (
     <View style={styles.renderActionLeft}>
       <MaterialCommunityIcons
@@ -123,13 +163,17 @@ export default function Index() {
     </View>
   );
 
-  const renderRightActions = () => (
+  const renderRightActions = (habitId: string) => (
     <View style={styles.renderActionRight}>
-      <MaterialCommunityIcons
-        name="check-circle-outline"
-        size={32}
-        color={"#fff"}
-      />
+      {isHabitCompleted(habitId) ? (
+        <Text style={{ color: "#fff" }}>Completed!</Text>
+      ) : (
+        <MaterialCommunityIcons
+          name="check-circle-outline"
+          size={32}
+          color={"#fff"}
+        />
+      )}
     </View>
   );
 
@@ -159,7 +203,7 @@ export default function Index() {
                 overshootLeft={false}
                 overshootRight={false}
                 renderLeftActions={renderLeftActions}
-                renderRightActions={renderRightActions}
+                renderRightActions={() => renderRightActions(habit.$id)}
                 onSwipeableOpen={(direction) => {
                   if (direction == "left") {
                     handleDelete(habit.$id);
@@ -170,7 +214,13 @@ export default function Index() {
                   swipableRefs.current[habit.$id]?.close();
                 }}
               >
-                <View key={key} style={styles.cardContainer}>
+                <View
+                  key={key}
+                  style={[
+                    styles.cardContainer,
+                    isHabitCompleted(habit.$id) && styles.cardCompleted,
+                  ]}
+                >
                   <View style={styles.cardHeader}>
                     <Text style={styles.cardTitle}>{habit.title}</Text>
                     <Text style={styles.cardDescription}>
@@ -230,6 +280,9 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 4,
+  },
+  cardCompleted: {
+    opacity: 0.6,
   },
   cardHeader: {
     flex: 1,
