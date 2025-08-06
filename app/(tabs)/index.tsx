@@ -3,6 +3,7 @@ import {
   database,
   DATABASE_ID,
   HABITS_COLLECTION_ID,
+  HABITS_COMPLETION_COLLECTION_ID,
   RealtimeResponse,
 } from "@/lib/appwrite";
 import { useAuth } from "@/lib/auth-context";
@@ -10,7 +11,7 @@ import { Habit } from "@/types/database.types";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useEffect, useRef, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
-import { Query } from "react-native-appwrite";
+import { ID, Query } from "react-native-appwrite";
 import { Swipeable } from "react-native-gesture-handler";
 import { IconButton, Text } from "react-native-paper";
 
@@ -63,7 +64,7 @@ export default function Index() {
         HABITS_COLLECTION_ID,
         [Query.equal("user_id", user?.$id ?? "")]
       );
-      console.log(response.documents);
+
       setHabits(response.documents as unknown as Habit[]);
     } catch (error) {
       console.log(error);
@@ -73,6 +74,40 @@ export default function Index() {
   const handleDelete = async (id: string) => {
     try {
       await database.deleteDocument(DATABASE_ID, HABITS_COLLECTION_ID, id);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const handleCompleteHabit = async (habit_id: string) => {
+    if (!user) return;
+
+    try {
+      const currentDate = new Date().toISOString();
+
+      await database.createDocument(
+        DATABASE_ID,
+        HABITS_COMPLETION_COLLECTION_ID,
+        ID.unique(),
+        {
+          habit_id,
+          user_id: user?.$id,
+          completed_at: currentDate,
+        }
+      );
+
+      const habit = habits?.find((h) => h.$id === habit_id);
+      if (!habit) return;
+
+      await database.updateDocument(
+        DATABASE_ID,
+        HABITS_COLLECTION_ID,
+        habit_id,
+        {
+          streak_count: habit?.streak_count + 1,
+          last_completed: currentDate,
+        }
+      );
     } catch (error) {
       console.error(error);
     }
@@ -128,6 +163,8 @@ export default function Index() {
                 onSwipeableOpen={(direction) => {
                   if (direction == "left") {
                     handleDelete(habit.$id);
+                  } else if (direction == "right") {
+                    handleCompleteHabit(habit.$id);
                   }
 
                   swipableRefs.current[habit.$id]?.close();
